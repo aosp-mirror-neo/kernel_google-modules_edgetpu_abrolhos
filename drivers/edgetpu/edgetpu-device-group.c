@@ -1737,7 +1737,7 @@ int edgetpu_mmap_csr(struct edgetpu_device_group *group,
 	}
 
 	vma_size = vma->vm_end - vma->vm_start;
-	map_size = min(vma_size, USERSPACE_CSR_SIZE);
+	map_size = max(min(vma_size, USERSPACE_CSR_SIZE), PAGE_SIZE);
 	if (is_external)
 		phys_base = etdev->regs.phys +
 			    group->ext_mailbox->descriptors[0].mailbox->cmd_queue_csr_base;

@@ -241,7 +241,7 @@ edgetpu_mailbox_vii_add(struct edgetpu_mailbox_manager *mgr, uint id)
 	if (id == 0) {
 		uint i;
 
-		for (i = mgr->vii_index_from; i < mgr->vii_index_to; i++) {
+		for (i = mgr->vii_index_from+1; i < mgr->vii_index_to; i+=2) {
 			if (!mgr->mailboxes[i]) {
 				id = i;
 				break;
