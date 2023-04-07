@@ -333,7 +333,8 @@ int edgetpu_mmu_map(struct edgetpu_dev *etdev, struct edgetpu_mapping *map,
 	 */
 	if (params.domain != default_domain) {
 		ssize_t mapped = (ssize_t)iommu_map_sg(params.domain, iova, map->sgt.sgl,
-						       map->sgt.orig_nents, params.prot);
+						       map->sgt.orig_nents, params.prot,
+						       GFP_KERNEL);
 
 		/* iommu_map_sg returns 0 on failure before 5.15, returns -errno afterwards */
 		if (mapped <= 0) {
@@ -435,7 +436,7 @@ int edgetpu_mmu_add_translation(struct edgetpu_dev *etdev, unsigned long iova,
 	domain = get_domain_by_context_id(etdev, context_id);
 	if (!domain)
 		return -ENODEV;
-	return iommu_map(domain, iova, paddr, size, prot);
+	return iommu_map(domain, iova, paddr, size, prot, GFP_KERNEL);
 }
 
 void edgetpu_mmu_remove_translation(struct edgetpu_dev *etdev,
@@ -477,7 +478,7 @@ tpu_addr_t edgetpu_mmu_tpu_map(struct edgetpu_dev *etdev, dma_addr_t down_addr,
 	if (!paddr)
 		return 0;
 	/* Map the address to the context-specific domain */
-	if (iommu_map(domain, down_addr, paddr, size, prot))
+	if (iommu_map(domain, down_addr, paddr, size, prot, GFP_KERNEL))
 		return 0;
 
 	/* Return downstream IOMMU DMA address as TPU address. */
@@ -539,7 +540,7 @@ tpu_addr_t edgetpu_mmu_tpu_map_sgt(struct edgetpu_dev *etdev,
 		/* ignore sg->offset */
 		paddr =  page_to_phys(sg_page(sg));
 		size = sg->length + sg->offset;
-		ret = iommu_map(domain, cur_iova, paddr, size, prot);
+		ret = iommu_map(domain, cur_iova, paddr, size, prot, GFP_KERNEL);
 		if (ret)
 			goto rollback;
 		cur_iova += size;
