@@ -1169,7 +1169,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 	int i;
 	int ret;
 	struct vm_area_struct *vma;
-	struct vm_area_struct **vmas;
 	unsigned int foll_flags = FOLL_LONGTERM | FOLL_WRITE;
 
 	if (size == 0)
@@ -1250,27 +1249,18 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 	for (i = 0; i < ret; i++)
 		unpin_user_page(pages[i]);
 
-	/* Allocate our own vmas array non-contiguous. */
-	vmas = kvmalloc((num_pages * sizeof(*vmas)), GFP_KERNEL | __GFP_NOWARN);
-	if (!vmas) {
-		etdev_err(etdev, "out of memory allocating vmas (%lu bytes)",
-			  num_pages * sizeof(*pages));
-		kvfree(pages);
-		return ERR_PTR(-ENOMEM);
-	}
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 	down_read(&current->mm->mmap_sem);
 #else
 	mmap_read_lock(current->mm);
 #endif
 	ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags,
-			     pages, vmas);
+			     pages);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 	up_read(&current->mm->mmap_sem);
 #else
 	mmap_read_unlock(current->mm);
 #endif
-	kvfree(vmas);
 	if (ret < 0) {
 		etdev_dbg(etdev, "pin_user_pages failed %u:%pK-%u: %d",
 			  group->workload_id, (void *)host_addr, num_pages,
