@@ -1202,7 +1202,7 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 #else
 	mmap_read_lock(current->mm);
 #endif
-	vma = find_extend_vma(current->mm, host_addr & PAGE_MASK);
+	vma = vma_lookup(current->mm, host_addr & PAGE_MASK);
 	if (vma && !(vma->vm_flags & VM_WRITE)) {
 		foll_flags &= ~FOLL_WRITE;
 		*preadonly = true;
