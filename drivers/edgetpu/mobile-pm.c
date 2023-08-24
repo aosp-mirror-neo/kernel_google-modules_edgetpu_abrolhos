@@ -13,7 +13,9 @@
 #include <soc/google/bts.h>
 #include <soc/google/exynos_pm_qos.h>
 
-#include <soc/google/bcl.h>
+#if IS_ENABLED(CONFIG_GOOGLE_BCL)
+#include <bcl.h>
+#endif
 
 #include "edgetpu-config.h"
 #include "edgetpu-firmware.h"
