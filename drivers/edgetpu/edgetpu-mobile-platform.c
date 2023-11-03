@@ -22,6 +22,8 @@
 #include "mobile-firmware.h"
 #include "mobile-pm.h"
 
+static struct edgetpu_dev *edgetpu_debug_pointer;
+
 /*
  * Log and trace buffers at the beginning of the remapped region,
  * pool memory afterwards.
@@ -157,7 +159,7 @@ int edgetpu_chip_acquire_ext_mailbox(struct edgetpu_client *client,
 		mutex_unlock(&etmdev->tz_mailbox_lock);
 		return -EBUSY;
 	}
-	ret = edgetpu_mailbox_enable_ext(client, EDGETPU_TZ_MAILBOX_ID, NULL);
+	ret = edgetpu_mailbox_enable_ext(client, EDGETPU_TZ_MAILBOX_ID, NULL, 0);
 	if (!ret)
 		etmdev->secure_client = client;
 	mutex_unlock(&etmdev->tz_mailbox_lock);
@@ -218,6 +220,20 @@ int edgetpu_chip_setup_mmu(struct edgetpu_dev *etdev)
 void edgetpu_chip_remove_mmu(struct edgetpu_dev *etdev)
 {
 	edgetpu_mmu_detach(etdev);
+}
+
+static void edgetpu_platform_parse_pmu(struct edgetpu_mobile_platform_dev *etmdev)
+{
+	struct edgetpu_dev *etdev = &etmdev->edgetpu_dev;
+	struct device *dev = etdev->dev;
+	u32 reg;
+
+	if (of_find_property(dev->of_node, "pmu-status-base", NULL) &&
+	    !of_property_read_u32_index(dev->of_node, "pmu-status-base", 0, &reg)) {
+		etmdev->pmu_status = devm_ioremap(dev, reg, 0x4);
+		if (!etmdev->pmu_status)
+			etdev_info(etdev, "Using ACPM for blk status query\n");
+	}
 }
 
 static int edgetpu_platform_parse_ssmt(struct edgetpu_mobile_platform_dev *etmdev)
@@ -311,6 +327,17 @@ edgetpu_mobile_platform_set_fw_ctx_memory(struct edgetpu_mobile_platform_dev *et
 	return 0;
 }
 
+static inline const char *get_driver_commit(void)
+{
+#if IS_ENABLED(CONFIG_MODULE_SCMVERSION)
+	return THIS_MODULE->scmversion ?: "scmversion missing";
+#elif defined(GIT_REPO_TAG)
+	return GIT_REPO_TAG;
+#else
+	return "Unknown";
+#endif
+}
+
 static int edgetpu_mobile_platform_probe(struct platform_device *pdev,
 					 struct edgetpu_mobile_platform_dev *etmdev)
 {
@@ -397,6 +424,8 @@ static int edgetpu_mobile_platform_probe(struct platform_device *pdev,
 	if (ret)
 		dev_warn(dev, "SSMT setup failed (%d). Context isolation not enforced", ret);
 
+	edgetpu_platform_parse_pmu(etmdev);
+
 	etmdev->log_mem = devm_kcalloc(dev, etdev->num_cores, sizeof(*etmdev->log_mem), GFP_KERNEL);
 	if (!etmdev->log_mem) {
 		ret = -ENOMEM;
@@ -434,9 +463,12 @@ static int edgetpu_mobile_platform_probe(struct platform_device *pdev,
 		}
 	}
 
-	dev_info(dev, "%s edgetpu initialized. Build: %s", etdev->dev_name, GIT_REPO_TAG);
+	dev_info(dev, "%s edgetpu initialized. Build: %s", etdev->dev_name, get_driver_commit());
+
 	/* Turn the device off unless a client request is already received. */
 	edgetpu_pm_shutdown(etdev, false);
+
+	edgetpu_debug_pointer = etdev;
 
 	return 0;
 out_destroy_fw:
@@ -473,6 +505,9 @@ static int edgetpu_mobile_platform_remove(struct platform_device *pdev)
 	edgetpu_platform_cleanup_fw_region(etmdev);
 	edgetpu_pm_put(etdev->pm);
 	edgetpu_pm_shutdown(etdev, true);
-	mobile_pm_destroy(etdev);
+	edgetpu_mobile_pm_destroy(etdev);
+
+	edgetpu_debug_pointer = NULL;
+
 	return 0;
 }
