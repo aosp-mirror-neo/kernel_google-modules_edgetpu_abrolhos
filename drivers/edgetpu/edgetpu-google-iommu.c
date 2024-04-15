@@ -23,6 +23,13 @@
 #define EDGETPU_NUM_PREALLOCATED_DOMAINS 0
 #endif
 
+#define HAS_BEST_FIT_ALGO \
+	(IS_ENABLED(CONFIG_ANDROID) && LINUX_VERSION_CODE <= KERNEL_VERSION(5, 15, 0))
+
+#if HAS_BEST_FIT_ALGO
+#include <linux/dma-iommu.h>
+#endif
+
 struct edgetpu_iommu {
 	struct iommu_group *iommu_group;
 	/*
@@ -212,6 +219,14 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev, void *mmu_info)
 		dev_warn(etdev->dev, "device has no iommu group\n");
 
 	etdev_warn(etdev, "AUX domains not supported\n");
+
+#if HAS_BEST_FIT_ALGO
+	/* Enable best fit algorithm to minimize fragmentation */
+	ret = iommu_dma_enable_best_fit_algo(etdev->dev);
+	if (ret)
+		etdev_warn(etdev, "Failed to enable best-fit IOVA allocator (%d)\n", ret);
+#endif
+
 	ret = check_default_domain(etdev, etiommu);
 	if (ret)
 		goto err_free;
@@ -311,18 +326,12 @@ int edgetpu_mmu_map(struct edgetpu_dev *etdev, struct edgetpu_mapping *map,
 		iommu_get_domain_for_dev(etdev->dev);
 
 	ret = get_iommu_map_params(etdev, map, context_id, &params, mmu_flags);
-
 	if (ret)
 		return ret;
 
-	if (mmu_flags & EDGETPU_MMU_64)
-		dev_warn_once(etdev->dev,
-			      "%s: 64-bit addressing is not supported",
-			      __func__);
-
 	ret = dma_map_sg_attrs(etdev->dev, map->sgt.sgl, map->sgt.nents, map->dir, map->dma_attrs);
 	if (!ret)
-		return -EINVAL;
+		return -ENOSPC;
 	map->sgt.nents = ret;
 	iova = sg_dma_address(map->sgt.sgl);
 
