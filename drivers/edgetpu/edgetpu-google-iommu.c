@@ -105,44 +105,6 @@ get_domain_by_context_id(struct edgetpu_dev *etdev,
 	return domain;
 }
 
-static int edgetpu_iommu_dev_fault_handler(struct iommu_fault *fault,
-					   void *token)
-{
-	struct edgetpu_dev *etdev = (struct edgetpu_dev *)token;
-
-	if (fault->type == IOMMU_FAULT_DMA_UNRECOV) {
-		etdev_warn(etdev, "Unrecoverable IOMMU fault!\n");
-		etdev_warn(etdev, "Reason = %08X\n", fault->event.reason);
-		etdev_warn(etdev, "flags = %08X\n", fault->event.flags);
-		etdev_warn(etdev, "pasid = %08X\n", fault->event.pasid);
-		etdev_warn(etdev, "perms = %08X\n", fault->event.perm);
-		etdev_warn(etdev, "addr = %llX\n", fault->event.addr);
-		etdev_warn(etdev, "fetch_addr = %llX\n", fault->event.fetch_addr);
-	} else if (fault->type == IOMMU_FAULT_PAGE_REQ) {
-		etdev_dbg(etdev, "IOMMU page request fault!\n");
-		etdev_dbg(etdev, "flags = %08X\n", fault->prm.flags);
-		etdev_dbg(etdev, "pasid = %08X\n", fault->prm.pasid);
-		etdev_dbg(etdev, "grpid = %08X\n", fault->prm.grpid);
-		etdev_dbg(etdev, "perms = %08X\n", fault->prm.perm);
-		etdev_dbg(etdev, "addr = %llX\n", fault->prm.addr);
-	}
-	// Tell the IOMMU driver to carry on
-	return -EAGAIN;
-}
-
-static int edgetpu_register_iommu_device_fault_handler(struct edgetpu_dev *etdev)
-{
-	etdev_dbg(etdev, "Registering IOMMU device fault handler\n");
-	return iommu_register_device_fault_handler(etdev->dev, edgetpu_iommu_dev_fault_handler,
-						   etdev);
-}
-
-static int edgetpu_unregister_iommu_device_fault_handler(struct edgetpu_dev *etdev)
-{
-	etdev_dbg(etdev, "Unregistering IOMMU device fault handler\n");
-	return iommu_unregister_device_fault_handler(etdev->dev);
-}
-
 /* A callback for idr_for_each to release the domains */
 static int edgetpu_idr_free_domain_callback(int id, void *p, void *data)
 {
@@ -260,11 +222,6 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev, void *mmu_info)
 	if (ret)
 		goto err_destroy_pool;
 
-	ret = edgetpu_register_iommu_device_fault_handler(etdev);
-	if (ret)
-		etdev_warn(etdev, "Failed to register fault handler! (%d)\n",
-			   ret);
-
 	/* etiommu initialization done */
 	etdev->mmu_cookie = etiommu;
 	return 0;
@@ -284,16 +241,11 @@ void edgetpu_mmu_reset(struct edgetpu_dev *etdev)
 void edgetpu_mmu_detach(struct edgetpu_dev *etdev)
 {
 	struct edgetpu_iommu *etiommu = etdev->mmu_cookie;
-	int i, ret;
+	int i;
 
 	if (!etiommu)
 		return;
 
-	ret = edgetpu_unregister_iommu_device_fault_handler(etdev);
-	if (ret)
-		etdev_warn(etdev,
-			   "Failed to unregister device fault handler (%d)\n",
-			   ret);
 	edgetpu_mmu_reset(etdev);
 
 	for (i = etiommu->context_0_default ? 1 : 0; i < EDGETPU_NCONTEXTS; i++) {
