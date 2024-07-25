@@ -8,6 +8,7 @@
 #include <linux/idr.h>
 #include <linux/iommu.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include "edgetpu-domain-pool.h"
 #include "edgetpu-internal.h"
