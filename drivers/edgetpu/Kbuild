@@ -3,7 +3,7 @@
 obj-$(CONFIG_ABROLHOS)		+= abrolhos.o
 ccflags-y			+= -DCONFIG_EDGETPU_TELEMETRY_TRACE=1 -DCONFIG_ABROLHOS=1
 
-GIT_PATH=$(srctree)/$(src)
+GIT_PATH=$(src)
 ifeq ($(shell git -C $(GIT_PATH) rev-parse --is-inside-work-tree),true)
 	GIT_REPO_STATE=$(shell (git -C $(GIT_PATH) status --porcelain | grep -q .) && echo -dirty)
 	ccflags-y	+= -DGIT_REPO_TAG=\"$(shell git -C $(GIT_PATH) rev-parse --short HEAD)$(GIT_REPO_STATE)\"
@@ -20,4 +20,4 @@ abrolhos-y	:= abrolhos-device.o abrolhos-device-group.o abrolhos-fs.o abrolhos-c
 
 # This -I is for the trace file include. It was removed from ccflags-y to avoid
 # including the header stubs.
-CFLAGS_abrolhos-fs.o := -I$(srctree)/$(src)/include
+CFLAGS_abrolhos-fs.o := -I$(src)/include
