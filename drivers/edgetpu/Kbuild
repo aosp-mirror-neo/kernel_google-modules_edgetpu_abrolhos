@@ -4,7 +4,7 @@ obj-$(CONFIG_ABROLHOS)		+= abrolhos.o
 ccflags-y			+= -DCONFIG_EDGETPU_TELEMETRY_TRACE=1 -DCONFIG_ABROLHOS=1
 
 GIT_PATH=$(src)
-ifeq ($(shell git -C $(GIT_PATH) rev-parse --is-inside-work-tree),true)
+ifeq ($(shell git -C $(GIT_PATH) rev-parse --is-inside-work-tree 2> /dev/null),true)
 	GIT_REPO_STATE=$(shell (git -C $(GIT_PATH) status --porcelain | grep -q .) && echo -dirty)
 	ccflags-y	+= -DGIT_REPO_TAG=\"$(shell git -C $(GIT_PATH) rev-parse --short HEAD)$(GIT_REPO_STATE)\"
 else
