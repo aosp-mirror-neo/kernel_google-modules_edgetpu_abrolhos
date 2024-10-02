@@ -1161,7 +1161,6 @@ static const struct attribute_group edgetpu_attr_group = {
 
 const struct file_operations edgetpu_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.mmap = edgetpu_fs_mmap,
 	.open = edgetpu_fs_open,
 	.release = edgetpu_fs_release,
