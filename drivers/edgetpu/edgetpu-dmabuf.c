@@ -978,7 +978,7 @@ static int _edgetpu_sync_fence_signal(struct dma_fence *fence, int errno, bool i
 		 fence->seqno, errno);
 	if (errno)
 		dma_fence_set_error(fence, errno);
-	ret = dma_fence_signal_locked(fence);
+	ret = dma_fence_check_and_signal_locked(fence) ? -EINVAL : 0;
 
 out_unlock:
 	spin_unlock_irq(fence->lock);
