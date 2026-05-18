@@ -966,7 +966,7 @@ static int _edgetpu_sync_fence_signal(struct dma_fence *fence, int errno, bool i
 {
 	int ret;
 
-	spin_lock_irq(fence->lock);
+	spin_lock_irq(dma_fence_spinlock(fence));
 	/* don't signal fence twice */
 	if (unlikely(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))) {
 		ret = ignore_signaled ? 0 : -EINVAL;
@@ -981,7 +981,7 @@ static int _edgetpu_sync_fence_signal(struct dma_fence *fence, int errno, bool i
 	ret = dma_fence_check_and_signal_locked(fence) ? -EINVAL : 0;
 
 out_unlock:
-	spin_unlock_irq(fence->lock);
+	spin_unlock_irq(dma_fence_spinlock(fence));
 	return ret;
 }
 
@@ -1062,7 +1062,7 @@ int edgetpu_sync_fence_debugfs_show(struct seq_file *s, void *unused)
 				     etfence_list);
 		struct dma_fence *fence = &etfence->fence;
 
-		spin_lock_irq(&etfence->lock);
+		spin_lock_irq(dma_fence_spinlock(fence));
 		seq_printf(s, "%s-%s %llu-" SEQ_FMT " %s",
 			   fence->ops->get_driver_name(fence),
 			   fence->ops->get_timeline_name(fence),
@@ -1080,7 +1080,7 @@ int edgetpu_sync_fence_debugfs_show(struct seq_file *s, void *unused)
 		if (fence->error)
 			seq_printf(s, " err=%d", fence->error);
 		seq_printf(s, " group=%u\n", etfence->group->workload_id);
-		spin_unlock_irq(&etfence->lock);
+		spin_unlock_irq(dma_fence_spinlock(fence));
 	}
 
 	spin_unlock_irq(&etfence_list_lock);
