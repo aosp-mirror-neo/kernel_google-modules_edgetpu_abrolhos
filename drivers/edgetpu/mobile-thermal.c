@@ -371,7 +371,7 @@ static int tpu_thermal_cooling_register(struct edgetpu_thermal *thermal, char *t
 		dev_warn(thermal->dev, "failed to find cooling node\n");
 	/* Initialize the cooling state as 0, means "no cooling" */
 	thermal->cooling_state = 0;
-	thermal->cdev = thermal_of_cooling_device_register(cooling_node, type, thermal,
+	thermal->cdev = thermal_of_cooling_device_register(cooling_node, 0, type, thermal,
 							   &edgetpu_cooling_ops);
 	if (IS_ERR(thermal->cdev))
 		return PTR_ERR(thermal->cdev);
